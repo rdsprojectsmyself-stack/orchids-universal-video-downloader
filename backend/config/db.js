@@ -14,8 +14,9 @@ const connectDB = () => {
         email TEXT NOT NULL UNIQUE,
         password TEXT,
         name TEXT NOT NULL,
-        googleId TEXT,
+        googleId TEXT UNIQUE,
         avatar TEXT,
+        provider TEXT NOT NULL DEFAULT 'local',
         isAdmin INTEGER DEFAULT 0,
         isVerified INTEGER DEFAULT 0,
         createdAt TEXT DEFAULT CURRENT_TIMESTAMP
@@ -40,12 +41,16 @@ const connectDB = () => {
     const columns = db.prepare("PRAGMA table_info(users)").all();
     const hasGoogleId = columns.some(c => c.name === 'googleId');
     const hasAvatar = columns.some(c => c.name === 'avatar');
+    const hasProvider = columns.some(c => c.name === 'provider');
 
     if (!hasGoogleId) {
       db.exec("ALTER TABLE users ADD COLUMN googleId TEXT;");
     }
     if (!hasAvatar) {
       db.exec("ALTER TABLE users ADD COLUMN avatar TEXT;");
+    }
+    if (!hasProvider) {
+      db.exec("ALTER TABLE users ADD COLUMN provider TEXT NOT NULL DEFAULT 'local';");
     }
 
     console.log('✅ SQLite database initialized successfully');

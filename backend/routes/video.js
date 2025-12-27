@@ -13,5 +13,6 @@ router.post('/download/guest', guestDownloadLimiter, videoController.downloadVid
 
 // Protected routes (authentication required)
 router.post('/download', verifyToken, videoController.downloadVideo);
+router.post('/trim', verifyToken, videoController.trimVideo);
 
 module.exports = router;

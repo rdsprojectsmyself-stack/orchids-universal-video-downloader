@@ -1,7 +1,6 @@
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const { Op } = require('sequelize');
+const { getDB } = require('../config/db');
 const { OAuth2Client } = require('google-auth-library');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'replace-this-in-prod';
@@ -24,26 +23,26 @@ function generateToken(user) {
 exports.signup = async (req, res) => {
   try {
     const { email, password, name } = req.body;
+    const db = getDB();
 
     // require password for local signups
     if (!password || password.trim().length === 0) {
       return res.status(400).json({ error: 'PASSWORD_REQUIRED', message: 'Password is required for email signup.' });
     }
 
-    const existing = await User.findOne({ where: { email } });
+    const existing = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
     if (existing) {
       return res.status(409).json({ error: 'EMAIL_IN_USE', message: 'Email already in use.' });
     }
 
     const hashed = await bcrypt.hash(password, 10);
 
-    const user = await User.create({
-      email,
-      password: hashed,
-      name: name || null,
-      provider: 'local',
-    });
+    const result = db.prepare(`
+      INSERT INTO users (email, password, name, provider)
+      VALUES (?, ?, ?, 'local')
+    `).run(email, hashed, name || email.split('@')[0]);
 
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
     const token = generateToken(user);
     return res.status(201).json({ token, user: { id: user.id, email: user.email, provider: user.provider, name: user.name } });
   } catch (err) {
@@ -56,8 +55,9 @@ exports.signup = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    const db = getDB();
 
-    const user = await User.findOne({ where: { email } });
+    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
     if (!user) {
       return res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Invalid credentials.' });
     }
@@ -89,6 +89,8 @@ exports.login = async (req, res) => {
 exports.googleLogin = async (req, res) => {
   try {
     const { idToken } = req.body;
+    const db = getDB();
+    
     if (!idToken) {
       return res.status(400).json({ error: 'ID_TOKEN_REQUIRED', message: 'Google idToken is required' });
     }
@@ -113,30 +115,21 @@ exports.googleLogin = async (req, res) => {
     const name = payload.name || null;
     const avatar = payload.picture || null;
 
-    let user = await User.findOne({
-      where: {
-        [Op.or]: [
-          { email },
-          { googleId },
-        ],
-      },
-    });
+    let user = db.prepare('SELECT * FROM users WHERE email = ? OR googleId = ?').get(email, googleId);
 
     if (!user) {
       // Create a new Google user WITHOUT password
-      user = await User.create({
-        email,
-        googleId,
-        password: null,
-        provider: 'google',
-        name,
-        avatar
-      });
+      const result = db.prepare(`
+        INSERT INTO users (email, googleId, password, provider, name, avatar)
+        VALUES (?, ?, NULL, 'google', ?, ?)
+      `).run(email, googleId, name || email.split('@')[0], avatar);
+      
+      user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
     } else {
       // attach googleId if missing
       if (!user.googleId && googleId) {
+        db.prepare('UPDATE users SET googleId = ? WHERE id = ?').run(googleId, user.id);
         user.googleId = googleId;
-        await user.save();
       }
     }
 
@@ -178,6 +171,7 @@ exports.logout = async (req, res) => {
 // Keep the old oauth callback if used by other flows
 exports.googleCallback = async (req, res) => {
   try {
+    const db = getDB();
     const googleProfile = req.user || req.body;
     const googleId = googleProfile.id || googleProfile.sub || googleProfile.googleId;
     const email = (googleProfile.emails && googleProfile.emails[0] && googleProfile.emails[0].value) || googleProfile.email;
@@ -185,22 +179,18 @@ exports.googleCallback = async (req, res) => {
       return res.status(400).json({ message: 'Google account did not return an email.' });
     }
 
-    let user = await User.findOne({
-      where: {
-        [Op.or]: [{ email }, { googleId }]
-      }
-    });
+    let user = db.prepare('SELECT * FROM users WHERE email = ? OR googleId = ?').get(email, googleId);
 
     if (!user) {
-      user = await User.create({
-        email,
-        googleId,
-        password: null,
-        provider: 'google',
-      });
+      const result = db.prepare(`
+        INSERT INTO users (email, googleId, password, provider)
+        VALUES (?, ?, NULL, 'google')
+      `).run(email, googleId);
+      
+      user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
     } else if (!user.googleId && googleId) {
+      db.prepare('UPDATE users SET googleId = ? WHERE id = ?').run(googleId, user.id);
       user.googleId = googleId;
-      await user.save();
     }
 
     const token = generateToken(user);

@@ -60,7 +60,6 @@ const corsOptions = {
 
 // Apply preflight handling for all routes
 // Respond 204 to OPTIONS preflight to avoid browsers failing with "Failed to fetch"
-app.options('*', cors(corsOptions), (req, res) => res.sendStatus(204));
 app.use(cors(corsOptions));
 
 // Body parsers, cookies

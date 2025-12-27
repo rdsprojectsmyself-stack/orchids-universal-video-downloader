@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
-const { jwtSecret } = require('../config/auth');
-const User = require('../models/User');
+const { getDB } = require('../config/db');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'replace-this-in-prod';
 
 const verifyToken = async (req, res, next) => {
   try {
@@ -25,7 +26,7 @@ const verifyToken = async (req, res, next) => {
     // Verify JWT token
     let decoded;
     try {
-      decoded = jwt.verify(token, jwtSecret);
+      decoded = jwt.verify(token, JWT_SECRET);
     } catch (jwtError) {
       console.error('JWT verification failed:', jwtError.message);
       
@@ -54,7 +55,8 @@ const verifyToken = async (req, res, next) => {
     console.log('Token verified successfully for user ID:', decoded.id);
     
     // Find user in database
-    const user = await User.findById(decoded.id);
+    const db = getDB();
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(decoded.id);
     
     if (!user) {
       console.error('User not found for token:', decoded.id);
