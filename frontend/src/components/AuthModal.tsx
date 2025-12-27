@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { syncGoogleAuth } from '../lib/auth';
+import { LogIn, Music, ShieldCheck, Mail, Lock, User, X } from 'lucide-react';
 
 export default function AuthModal() {
   const { isAuthModalOpen, closeAuthModal, login } = useAuth();
@@ -17,9 +18,20 @@ export default function AuthModal() {
 
   useEffect(() => {
     if (isAuthModalOpen && typeof window !== 'undefined' && (window as any).google) {
-      initializeGoogleSignIn();
+      // Small delay to ensure the container is rendered
+      const timer = setTimeout(() => {
+        initializeGoogleSignIn();
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [isAuthModalOpen]);
+
+  // Re-initialize if container ref changes
+  useEffect(() => {
+    if (isAuthModalOpen && googleBtnRef.current && (window as any).google) {
+      initializeGoogleSignIn();
+    }
+  }, [googleBtnRef.current, isAuthModalOpen]);
 
   const initializeGoogleSignIn = () => {
     try {
@@ -39,7 +51,7 @@ export default function AuthModal() {
         (window as any).google.accounts.id.renderButton(googleBtnRef.current, {
           theme: 'filled_blue',
           size: 'large',
-          width: googleBtnRef.current.offsetWidth,
+          width: googleBtnRef.current.offsetWidth || 300,
           text: 'continue_with',
           shape: 'pill'
         });
@@ -111,36 +123,123 @@ export default function AuthModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md bg-[#0f0f0f] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-6 border-b border-white/5">
-          <h2 className="text-xl font-bold text-white">{mode === 'login' ? 'Sign in' : 'Create account'}</h2>
-          <button onClick={closeAuthModal} className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-full transition-colors">×</button>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+      <div
+        className="relative w-full max-w-[440px] glass-dark p-8 md:p-10 animate-in zoom-in-95 duration-300"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={closeAuthModal}
+          className="absolute top-6 right-6 p-2 text-white/40 hover:text-white hover:bg-white/10 rounded-full transition-all"
+        >
+          <X size={20} />
+        </button>
+
+        <div className="flex flex-col items-center gap-6 mb-8 text-center">
+          <div className="p-3 bg-white/5 rounded-2xl">
+            <Music className="w-10 h-10 text-blue-500" />
+          </div>
+          <div>
+            <h2 className="text-3xl font-bold text-white mb-2">
+              {mode === 'login' ? 'Welcome Back' : 'Create Account'}
+            </h2>
+            <p className="text-white/60 text-sm">
+              {mode === 'login' ? 'Sign in to continue downloading' : 'Join us to start downloading videos'}
+            </p>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        {error && (
+          <div className="mb-6 p-4 rounded-xl bg-red-500/20 border border-red-500/50 text-red-400 text-sm text-center">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-5">
           {mode === 'signup' && (
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" className="w-full p-3 bg-white/5 rounded" />
+            <div className="relative">
+              <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Full name"
+                className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm"
+              />
+            </div>
           )}
-          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="w-full p-3 bg-white/5 rounded" />
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" className="w-full p-3 bg-white/5 rounded" />
+
+          <div className="relative">
+            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email address"
+              className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm"
+            />
+          </div>
+
+          <div className="relative">
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
+              className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm"
+            />
+          </div>
+
           {mode === 'signup' && (
-            <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm password" className="w-full p-3 bg-white/5 rounded" />
+            <div className="relative">
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm password"
+                className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm"
+              />
+            </div>
           )}
 
-          {error && <div className="text-sm text-red-400">{error}</div>}
-
-          <button type="submit" disabled={isLoading} className="w-full p-3 bg-primary rounded text-white">{isLoading ? 'Please wait...' : (mode === 'login' ? 'Sign in' : 'Create account')}</button>
-
-          <div className="py-3 text-center">or</div>
-
-          <div ref={googleBtnRef} className="w-full flex justify-center" />
-
-          <div className="text-sm text-center text-white/60 mt-3">
-            {mode === 'login' ? (
-              <span>New here? <button type="button" onClick={() => setMode('signup')} className="underline">Create an account</button></span>
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full py-3.5 premium-gradient-btn rounded-xl flex items-center justify-center gap-2 group"
+          >
+            {isLoading ? (
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
-              <span>Already have an account? <button type="button" onClick={() => setMode('login')} className="underline">Sign in</button></span>
+              <>
+                <LogIn className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
+                <span>{mode === 'login' ? 'Sign in' : 'Create account'}</span>
+              </>
+            )}
+          </button>
+
+          <div className="relative py-2 flex items-center">
+            <div className="flex-grow border-t border-white/10"></div>
+            <span className="flex-shrink mx-4 text-white/30 text-xs">OR</span>
+            <div className="flex-grow border-t border-white/10"></div>
+          </div>
+
+          <div
+            ref={googleBtnRef}
+            className="w-full flex justify-center min-h-[44px]"
+          />
+
+          <div className="pt-4 rounded-xl bg-blue-500/5 border border-blue-500/10 flex gap-3 items-start p-4">
+            <ShieldCheck className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+            <p className="text-[11px] text-zinc-400 leading-relaxed">
+              This app uses Google OAuth 2.0 and does not store Google passwords.
+            </p>
+          </div>
+
+          <div className="text-sm text-center text-white/40 mt-6">
+            {mode === 'login' ? (
+              <span>New here? <button type="button" onClick={() => setMode('signup')} className="text-blue-400 hover:text-blue-300 font-medium">Create an account</button></span>
+            ) : (
+              <span>Already have an account? <button type="button" onClick={() => setMode('login')} className="text-blue-400 hover:text-blue-300 font-medium">Sign in</button></span>
             )}
           </div>
         </form>
@@ -148,3 +247,4 @@ export default function AuthModal() {
     </div>
   );
 }
+
