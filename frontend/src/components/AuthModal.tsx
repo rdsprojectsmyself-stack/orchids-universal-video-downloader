@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { syncGoogleAuth } from "../lib/auth";
+import { syncGoogleAuth } from "../../lib/auth";
 
 
 
