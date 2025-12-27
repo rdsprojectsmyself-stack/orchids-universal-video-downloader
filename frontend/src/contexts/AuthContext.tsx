@@ -60,59 +60,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const initAuth = async () => {
       const storedToken = localStorage.getItem('token');
-      
       if (!storedToken) {
         setLoading(false);
         return;
       }
 
       setToken(storedToken);
-      
-      try {
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-        
-        if (!backendUrl) {
-          console.error('NEXT_PUBLIC_BACKEND_URL is not configured');
-          setLoading(false);
-          return;
-        }
 
-        console.log('🔄 Verifying stored token...');
-        
-        const response = await fetch(`${backendUrl}/auth/me`, {
-          headers: {
-            'Authorization': `Bearer ${storedToken}`
-          }
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          console.log('✅ Token verified, user loaded:', data.user.email);
-          setUser(data.user);
-          setIsAdmin(data.user.isAdmin);
-        } else {
-          // Token is invalid or expired
-          const errorData = await response.json().catch(() => ({}));
-          console.warn('⚠️ Token verification failed:', errorData.message || response.statusText);
-          
-          // Clear invalid token
-          localStorage.removeItem('token');
-          setToken(null);
-          setUser(null);
-          setIsAdmin(false);
-          
-          // Show user-friendly message for expired tokens
-          if (errorData.code === 'TOKEN_EXPIRED') {
-            console.log('🔐 Session expired. User needs to login again.');
-          }
+      // We trust the token in localStorage for initial state to prevent UI flicker
+      // The backend will validate it on the first functional request anyway
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) {
+        try {
+          const parsedUser = JSON.parse(savedUser);
+          setUser(parsedUser);
+          setIsAdmin(parsedUser.isAdmin || parsedUser.email === ADMIN_EMAIL);
+        } catch (e) {
+          console.error('Failed to parse saved user', e);
         }
-      } catch (error) {
-        console.error('❌ Failed to verify token:', error);
-        // Network error or server down - keep token for retry
-        // but don't set user as authenticated
-        console.log('⚠️ Network error during token verification. Token kept for retry.');
       }
-      
+
       setLoading(false);
     };
 
@@ -135,9 +102,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = (newToken: string, newUser: User) => {
     localStorage.setItem('token', newToken);
+    localStorage.setItem('user', JSON.stringify(newUser));
     setToken(newToken);
     setUser(newUser);
-    setIsAdmin(newUser.isAdmin);
+    setIsAdmin(newUser.isAdmin || newUser.email === ADMIN_EMAIL);
     setIsAuthModalOpen(false); // Close modal on successful login
   };
 
@@ -146,6 +114,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await apiLogout();
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
       setToken(null);
       setUser(null);
       setIsAdmin(false);
