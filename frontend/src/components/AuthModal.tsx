@@ -2,13 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-<<<<<<< HEAD
-import { syncGoogleAuth } from "../../lib/auth";
-
-
-=======
 import { syncGoogleAuth } from '../lib/auth';
->>>>>>> 688d7fa (fix: frontend auth modal and auth context (no backend changes))
 
 export default function AuthModal() {
   const { isAuthModalOpen, closeAuthModal, login } = useAuth();
